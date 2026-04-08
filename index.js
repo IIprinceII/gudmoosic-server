@@ -28,7 +28,7 @@ app.get('/info', (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'Missing url parameter' });
 
-  const cmd = `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=ios,web" "${sanitize(url)}"`;
+  const cmd = `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=web_creator,mweb" "${sanitize(url)}"`;
 
   exec(cmd, { timeout: 30000 }, (err, stdout, stderr) => {
     if (err) return res.status(500).json({ error: 'Could not fetch video info', detail: stderr });
@@ -62,7 +62,7 @@ app.get('/download', (req, res) => {
     '--extract-audio',
     '--audio-format mp3',
     '--audio-quality 0',
-    '--extractor-args "youtube:player_client=ios,web"',
+    '--extractor-args "youtube:player_client=web_creator,mweb"',
     `--output "${template}"`,
     `"${sanitize(url)}"`,
   ].join(' ');
