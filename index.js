@@ -1,6 +1,4 @@
 // GudMoosic — YouTube MP3 Server
-// Deploy to Railway: railway up
-// Requires yt-dlp installed on the server (Railway Nixpacks handles this)
 
 const express = require('express');
 const { exec } = require('child_process');
@@ -11,12 +9,23 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const TMP = '/tmp/gudmoosic';
+const COOKIES_FILE = path.join(TMP, 'yt_cookies.txt');
 
 app.use(cors());
 app.use(express.json());
 
 // Ensure temp dir exists
 if (!fs.existsSync(TMP)) fs.mkdirSync(TMP, { recursive: true });
+
+// Write cookies from env var if present
+if (process.env.YT_COOKIES_B64) {
+  const decoded = Buffer.from(process.env.YT_COOKIES_B64, 'base64').toString('utf8');
+  fs.writeFileSync(COOKIES_FILE, decoded);
+}
+
+function cookiesArg() {
+  return fs.existsSync(COOKIES_FILE) ? `--cookies "${COOKIES_FILE}"` : '';
+}
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -28,7 +37,7 @@ app.get('/info', (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'Missing url parameter' });
 
-  const cmd = `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=web_creator,mweb" "${sanitize(url)}"`;
+  const cmd = `yt-dlp --dump-json --no-playlist ${cookiesArg()} "${sanitize(url)}"`;
 
   exec(cmd, { timeout: 30000 }, (err, stdout, stderr) => {
     if (err) return res.status(500).json({ error: 'Could not fetch video info', detail: stderr });
@@ -62,7 +71,7 @@ app.get('/download', (req, res) => {
     '--extract-audio',
     '--audio-format mp3',
     '--audio-quality 0',
-    '--extractor-args "youtube:player_client=web_creator,mweb"',
+    cookiesArg(),
     `--output "${template}"`,
     `"${sanitize(url)}"`,
   ].join(' ');
