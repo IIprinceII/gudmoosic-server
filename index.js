@@ -39,8 +39,8 @@ app.get('/info', (req, res) => {
 
   const cmd = `yt-dlp --dump-json --no-playlist ${cookiesArg()} "${sanitize(url)}"`;
 
-  exec(cmd, { timeout: 30000 }, (err, stdout, stderr) => {
-    if (err) return res.status(500).json({ error: 'Could not fetch video info', detail: stderr });
+  exec(cmd, { timeout: 60000 }, (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ error: 'Could not fetch video info', detail: stderr || err.message });
     try {
       const info = JSON.parse(stdout);
       res.json({
@@ -76,10 +76,10 @@ app.get('/download', (req, res) => {
     `"${sanitize(url)}"`,
   ].join(' ');
 
-  exec(cmd, { timeout: 120000 }, (err, stdout, stderr) => {
+  exec(cmd, { timeout: 180000 }, (err, stdout, stderr) => {
     if (err) {
       cleanup(outPath);
-      return res.status(500).json({ error: 'Download failed', detail: stderr });
+      return res.status(500).json({ error: 'Download failed', detail: stderr || err.message });
     }
 
     if (!fs.existsSync(outPath)) {
