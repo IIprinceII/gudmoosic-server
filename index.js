@@ -17,14 +17,11 @@ app.use(express.json());
 // Ensure temp dir exists
 if (!fs.existsSync(TMP)) fs.mkdirSync(TMP, { recursive: true });
 
-// Write cookies from env var if present
-if (process.env.YT_COOKIES_B64) {
+function cookiesArg() {
+  if (!process.env.YT_COOKIES_B64) return '';
   const decoded = Buffer.from(process.env.YT_COOKIES_B64, 'base64').toString('utf8');
   fs.writeFileSync(COOKIES_FILE, decoded);
-}
-
-function cookiesArg() {
-  return fs.existsSync(COOKIES_FILE) ? `--cookies "${COOKIES_FILE}"` : '';
+  return `--cookies "${COOKIES_FILE}"`;
 }
 
 // ── Health check ──────────────────────────────────────────────────────────────
