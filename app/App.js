@@ -10,13 +10,20 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-const ALL_DEITIES = ['Ra', 'Anubis', 'Horus', 'Osiris', 'Ptah', 'Khepri', 'Khnum', 'Set'];
+const ALL_DEITIES = [
+  'Aker', 'Amun', 'Anubis', 'Apis', 'Aten', 'Atum', 'Bennu', 'Bes',
+  'Geb', 'Heru-ur', 'Horus', 'Imhotep', 'Khepri', 'Khnum', 'Khonsu',
+  'Maahes', 'Min', 'Montu', 'Nefertem', 'Onuris', 'Osiris', 'Ptah',
+  'Ra', 'Set',
+];
+
+const DEFAULT_SELECTED = ['Ra', 'Anubis', 'Horus', 'Osiris', 'Ptah', 'Set'];
 
 export default function App() {
   const [serverUrl, setServerUrl] = useState('http://localhost:3000');
   const [topic, setTopic] = useState('What does it mean to be remembered after death?');
   const [turns, setTurns] = useState('8');
-  const [selected, setSelected] = useState(new Set(ALL_DEITIES));
+  const [selected, setSelected] = useState(new Set(DEFAULT_SELECTED));
   const [transcript, setTranscript] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
