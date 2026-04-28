@@ -5,6 +5,8 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const Anthropic = require('@anthropic-ai/sdk');
+const { PERSONAS } = require('./personas');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -94,6 +96,92 @@ app.get('/download', (req, res) => {
     stream.on('error', () => cleanup(outPath));
   });
 });
+
+// ── Deity chat ────────────────────────────────────────────────────────────────
+const anthropic = new Anthropic();
+
+app.post('/chat', async (req, res) => {
+  const { topic, deities, turns = 8 } = req.body || {};
+
+  if (!topic || typeof topic !== 'string') {
+    return res.status(400).json({ error: 'Missing topic (string)' });
+  }
+  if (!Array.isArray(deities) || deities.length === 0) {
+    return res.status(400).json({ error: 'deities must be a non-empty array' });
+  }
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set on server' });
+  }
+
+  const unknown = deities.filter((d) => !PERSONAS[d]);
+  if (unknown.length) {
+    return res.status(400).json({
+      error: `Unknown deities: ${unknown.join(', ')}`,
+      known: Object.keys(PERSONAS),
+    });
+  }
+
+  const turnCount = Math.max(1, Math.min(40, Number(turns) || 8));
+  const transcript = [];
+
+  try {
+    for (let i = 0; i < turnCount; i++) {
+      const name = deities[i % deities.length];
+      const persona = PERSONAS[name];
+
+      const conversationSoFar = transcript.length
+        ? transcript.map((t) => `${t.deity}: ${t.text}`).join('\n\n')
+        : '(The discussion has not yet begun. You speak first.)';
+
+      const userMsg = [
+        `Topic the mortals have brought before the gods: ${topic}`,
+        '',
+        'Conversation so far:',
+        conversationSoFar,
+        '',
+        `Now reply in 2 to 4 sentences as ${name}. Do not prefix your reply with your name or any "says:" tag — just speak.`,
+      ].join('\n');
+
+      const reply = await anthropic.messages.create({
+        model: 'claude-opus-4-7',
+        max_tokens: 400,
+        output_config: { effort: 'low' },
+        system: buildSystemPrompt(name, persona),
+        messages: [{ role: 'user', content: userMsg }],
+      });
+
+      const text = (reply.content.find((b) => b.type === 'text')?.text || '').trim();
+      transcript.push({ deity: name, text });
+    }
+
+    res.json({ topic, transcript });
+  } catch (err) {
+    if (err instanceof Anthropic.APIError) {
+      return res
+        .status(err.status || 500)
+        .json({ error: 'Claude API error', detail: err.message });
+    }
+    res.status(500).json({ error: 'Chat failed', detail: err.message });
+  }
+});
+
+function buildSystemPrompt(name, persona) {
+  return [
+    `You are ${name}, ${persona.domain}.`,
+    '',
+    `Background: ${persona.notes}`,
+    '',
+    'You are speaking in a roundtable dialogue with other Egyptian deities about a topic mortals have brought before you.',
+    '',
+    'Style rules:',
+    '- Reply in 2 to 4 sentences.',
+    `- Stay strictly in character as ${name}. Do not narrate, do not break the fourth wall, do not address "the user".`,
+    '- Reference your domain, symbols, or mythology when it fits naturally.',
+    '- Address other gods present in the discussion when fitting.',
+    '- Speak with mythic dignity. Do not use profanity, slurs, sexual content, or modern crude slang.',
+    '- Do not preface your reply with your own name or any "says:" tag.',
+  ].join('\n');
+}
 
 function sanitize(url) {
   // Strip shell injection characters
